@@ -1,0 +1,219 @@
+---
+title: "ST558ProgrammingHW4"
+author: "Holly Probasco"
+format: pdf
+editor: visual
+---
+
+```{r, message=FALSE}
+library(tidyverse)
+```
+
+## Task 1: Conceptual Questions
+
+### 1.  What is the purpose of the lapply() function? What is the equivalent purrr function?
+- The purpose of the lapply() function is to apply a function over a list. This is more efficient than using a loop. The equivalent purrr function is map().
+### 2.  Suppose we have a list called my_list. Each element of the list is a numeric data frame (all columns are numeric). We want use lapply() to run the code cor(numeric_matrix, method = "kendall") on each element of the list. Write code to do this below! (I'm really trying to ask you how you specify method = "kendall" when calling lapply())
+- lapply(X = my_list, FUN = function(x) {cor(x, method = "kendall") } )
+### 3. What are two advantages of using purrr functions instead of the BaseR apply family?
+- One advantage is consistency. Each function has the same arguments, unlike the apply() functions.
+- Another is purrr has more options for shorthand anonymous functions, which allows for more simplification.
+### 4.  What is a side-effect function?
+- A side effect function is a function that does not change the data, but just produces something, like print() or plot()
+### 5. Why can you name a variable sd in a function and not cause any issues with the sd function?
+- Because variables in functions don't overwrite things in the global environment since they are just in the temporary function environment
+
+## Task 2: Writing R Functions
+### 1. Write a basic function that takes in a vector of responses and a vector of predictions and outputs the RMSE.
+```{r}
+getRMSE <- function(response_vec, prediction_vec,...) {
+ mse <- mean((response_vec - prediction_vec)^2, ...)
+ rmse <- sqrt(mse)
+ return(rmse)
+}
+```
+
+### 2. Run the following code to create some response values and predictions.
+```{r}
+set.seed(10)
+n <- 100
+x <- runif(n)
+resp <- 3 + 10*x + rnorm(n)
+pred <- predict(lm(resp~ x), data.frame(x))
+```
+
+Test your RMSE function using this data.
+```{r}
+getRMSE(resp,pred)
+```
+
+Repeat after replacing two of the response values with missing values (NA_real_).
+– Test your RMSE function with and without specifying the behavior to deal with missing values.
+```{r}
+set.seed(10)
+x_resp <- runif(98)
+resp <- c(3 + 10*x_resp + rnorm(98), NA_real_, NA_real_) 
+```
+
+With specifying
+```{r}
+getRMSE(resp,pred,na.rm=TRUE)
+```
+As we can see, removing the NAs is possible because of the ..., and we get basically the same RMSE as before.
+
+Without specifying
+```{r}
+getRMSE(resp,pred)
+```
+When removing the NA values are not specified, we get an NA due to the mean function
+
+### 3. Write a function called getMAE() that follows the specifications of the getRMSE() function.
+```{r}
+getMAE <- function(response_vec, prediction_vec, ...) {
+  mae <- mean(abs(response_vec-prediction_vec), ...)
+  
+  return(mae)
+}
+```
+
+### 4. Run the following code to create some response values and predictions.
+```{r}
+set.seed(10)
+n <- 100
+x <- runif(n)
+resp <- 3 + 10*x + rnorm(n)
+pred <- predict(lm(resp~ x), data.frame(x))
+```
+
+Test your MAE function using this data.
+```{r}
+getMAE(resp,pred)
+```
+
+Repeat after replacing two of the response values with missing values (NA_real_).
+– Test your MAE function with and without specifying the behavior to deal with missing values.
+```{r}
+set.seed(10)
+x_resp <- runif(98)
+resp <- c(3 + 10*x_resp + rnorm(98), NA_real_, NA_real_) 
+```
+
+With specifying
+```{r}
+getMAE(resp,pred,na.rm=TRUE)
+```
+As we can see, removing the NAs is possible because of the ..., and we get a very similar MAE as before.
+
+Without specifying
+```{r}
+getMAE(resp,pred)
+```
+When removing the NA values are not specified, we get an NA due to the mean function
+
+### 5. Let’s create a wrapper function that can be used to get either or both metrics returned with a single function call. 
+Do not rewrite your above two functions, call them inside the wrapper function (we would call the getRMSE() and getMAE() functions helper functions). When returning your values, give them appropriate names.
+• The function should check that two numeric (atomic) vectors have been passed (consider is.vector(), is.atomic(), and is.numeric()). If not, a message should print and the function should exit.
+• The function should return both metrics by default and include names. The behavior should be able to be changed using a character string of metrics to find.
+```{r}
+wrapper <- function(response_vec, prediction_vec, method = "Both", ...) {
+  if(!(is.vector(response_vec) && is.atomic(response_vec) && is.numeric(response_vec))) {
+    print("First input is not a numeric atomic vector") } 
+else if(!(is.vector(prediction_vec) && is.atomic(prediction_vec) && 
+is.numeric(prediction_vec))) {
+    print("Second input is not a numeric atomic vector") } 
+else { 
+      if(method == "RMSE") {
+        result <- getRMSE(response_vec,prediction_vec,na.rm=T)
+        return(cat("RMSE", result, sep = " "))
+      } else if(method == "MAE") {
+        result <- getMAE(response_vec,prediction_vec,na.rm=T)
+        return(cat("MAE", result, sep = " "))
+      }
+      names <- c("RMSE","MAE")
+      RMSE <- getRMSE(response_vec,prediction_vec,na.rm=T)
+      MAE <- getMAE(response_vec,prediction_vec,na.rm=T)
+      results <- c(RMSE,MAE)
+      results_matrix <- matrix(c(names,results),ncol = 2)
+      return(results_matrix)
+      } 
+}
+```
+
+### 6. Run the following code to create some response values and predictions.
+```{r}
+set.seed(10)
+n <- 100
+x <- runif(n)
+resp <- 3 + 10*x + rnorm(n)
+pred <- predict(lm(resp~ x), data.frame(x))
+```
+
+Test your new function using this data. Call it once asking for each metric individually and once specifying both metrics
+
+Specifying RMSE
+```{r}
+wrapper(resp,pred,method = "RMSE")
+```
+
+Specifying MAE
+```{r}
+wrapper(resp,pred,method = "MAE")
+```
+
+
+Both metrics (is the default)
+```{r}
+wrapper(resp, pred, method = "Both")
+```
+
+• Repeat with replacing two of the response values with missing values (NA_real_).
+```{r}
+set.seed(10)
+x_resp <- runif(98)
+resp <- c(3 + 10*x_resp + rnorm(98), NA_real_, NA_real_) 
+```
+
+```{r}
+wrapper(resp,pred, na.rm=TRUE)
+```
+
+• Finally, test your function by passing it incorrect data (i.e. a data frame or something else instead of
+vectors)
+```{r}
+testing = data.frame(resp)
+wrapper(testing,pred)
+```
+
+## Task 3: Querying an API and a Tidy-Style Function
+This is the API key I got: 0c084c9512084f4b8643b04a090a68e0
+### 1. Use GET() from the httr package to return information about a topic that you are interested in that has been in the news lately 
+```{r}
+news_url = 
+"https://newsapi.org/v2/everything?q=pokemon&from=2025-06-22&apiKey=0c084c9512084f4b8643b04a090a68e0"
+info <- httr::GET(url=news_url)
+str(info, max.level = 1)
+```
+
+### 2. Parse what is returned and find your way to the data frame that has the actual article information in it
+```{r} 
+parsed = jsonlite::fromJSON(rawToChar(info$content))
+poke_data = as.tibble(parsed$articles)
+poke_data
+```
+
+### 3. Now write a quick function that allows the user to easily query this API. The inputs to the function should be the title/subject to search for (string), a time period to search from (string - you’ll search from that time until the present), and an API key.
+```{r}
+query_function <- function(subject, time_from, key) {
+  news_url = paste0("https://newsapi.org/v2/everything?q=",subject,"&from=",
+time_from,"&apiKey=",key)
+info <- httr::GET(url=news_url)
+parsed = jsonlite::fromJSON(rawToChar(info$content))
+queried_data = as.tibble(parsed$articles)
+return(queried_data)
+}
+```
+
+```{r}
+query_function("celtics", "2025-06-22", "0c084c9512084f4b8643b04a090a68e0")
+```
+
